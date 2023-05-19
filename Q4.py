@@ -1,36 +1,42 @@
-import Q3
 import cv2
 import numpy as np
-output_folder = "/Users/linyinghsiao/Desktop/影像處理/HW2/Q4/"
 
-# 轉換為灰度圖像
-image = cv2.imread('aerialview-washedout.tif', cv2.IMREAD_GRAYSCALE)
+def apply_histogram_equalization(input_image_path):
+    loaded_image = cv2.imread(input_image_path, cv2.IMREAD_GRAYSCALE)
 
-histogram, cdf, height, width = Q3.some_function()
+    histogram_counts = [0]*256
+    for row_index in range(loaded_image.shape[0]):
+        for column_index in range(loaded_image.shape[1]):
+            histogram_counts[loaded_image[row_index, column_index]] += 1
 
-median = np.median(image)
+    total_pixels = loaded_image.shape[0] * loaded_image.shape[1]
+    cumulative_pixel_count, image_median = 0, 0
+    for pixel_intensity in range(256):
+        cumulative_pixel_count += histogram_counts[pixel_intensity]
+        if cumulative_pixel_count >= total_pixels / 2:
+            image_median = pixel_intensity
+            break
 
-histogram1 = [0.0] * 256
-for i in range(int(median)):
-   histogram1[i] = histogram[i]
+    cumulative_density_function = [0]*256
+    for pixel_intensity in range(256):
+        if pixel_intensity <= image_median:
+            cumulative_density_function[pixel_intensity] = sum(histogram_counts[:pixel_intensity+1])/sum(histogram_counts[:image_median+1])
+        else:
+            cumulative_density_function[pixel_intensity] = sum(histogram_counts[image_median+1:pixel_intensity+1])/sum(histogram_counts[image_median+1:])
 
-histogram2 = [0.0] * 256
-for i in range(int(median), 256):
-   histogram2[i] = histogram[i]
+    output_image = np.zeros_like(loaded_image)
+    for row_index in range(loaded_image.shape[0]):
+        for column_index in range(loaded_image.shape[1]):
+            if loaded_image[row_index, column_index] <= image_median:
+                output_image[row_index, column_index] = int(cumulative_density_function[loaded_image[row_index, column_index]] * image_median)
+            else:
+                output_image[row_index, column_index] = int(cumulative_density_function[loaded_image[row_index, column_index]] * (255 - image_median) + image_median)
+    
+    return output_image
 
-new_gray_values1 = [0.0] * 256
-for i in range(int(median)):
-   new_gray_values1[i] = round(cdf[i] * median)
+output_directory = "/Users/linyinghsiao/Desktop/影像處理/HW2/Q4/"
 
-new_gray_values2 = [0.0] * 256
-for i in range(int(median), 256):
-   new_gray_values2[i] = round(cdf[i] * (255 - median) + median)
-
-for i in range(height):
-   for j in range(width):
-       if image[i][j] < median:
-           image[i][j] = new_gray_values1[image[i][j]]
-       else:
-           image[i][j] = new_gray_values2[image[i][j]]
-
-cv2.imwrite(output_folder + 'aerialview-washedout-fixed.tif', image)
+if __name__ == "__main__":
+    input_image_filename = 'aerialview-washedout.tif'
+    processed_img = apply_histogram_equalization(input_image_filename)
+    cv2.imwrite(output_directory + '44.tif', processed_img)
